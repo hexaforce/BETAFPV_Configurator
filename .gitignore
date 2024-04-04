@@ -1,0 +1,40 @@
+# node.js npm related
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Configurator Build process
+cache/
+apps/
+dist/
+dist_cordova/
+debug/
+release/
+Windows/
+Mac/
+Linux/
+testresults/
+.eslintcache
+
+# OSX
+.DS_store
+
+# artefacts for Visual Studio Code
+/.vscode/
+
+# NetBeans
+nbproject/
+
+# IntelliJ
+.idea
+
+# Eclipse
+.project
+.settings/
+
+LiteRadio.json
+board.json
+*.bin
+package-lock.json
