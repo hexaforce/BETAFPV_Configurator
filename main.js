@@ -16,7 +16,7 @@ const reloader = require('electron-reloader')
 if (process.env.Reloader === 'true') {
   reloader(module, {
     watchRenderer : true,
-    ignore        : ['*.json', '*.bin'],
+    ignore        : ['**/*.json', '**/*.bin'],
   })
 }
 

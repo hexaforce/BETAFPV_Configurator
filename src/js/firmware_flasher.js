@@ -1,9 +1,10 @@
 const os = require('os')
 const path = require('path')
-
 var jsonFile = require('jsonfile')
-
 var jsonfileName = 'board.json'
+var { loadRemoteJsonFile, loadRemoteFirmwareFile } = require('./src/js/firmware_flasherDownloader.js')
+var { CRC16_Check, CRC16_Name } = require('./src/js/firmware_utils.js')
+var { addBoarOption } = require('./src/js/utils.js')
 
 const firmware_flasher = {
   localFirmwareLoaded       : false,
@@ -57,6 +58,7 @@ var flashBoard = {
   Cetus_X_HD : 7,
   Aquila16   : 8,
 }
+
 firmware_flasher.flashingMessage = function (message, type) {
   let self = this
 
@@ -105,33 +107,7 @@ firmware_flasher.enableFlashing = function (enabled, match) {
 
 firmware_flasher.flashProgress = function (value) {
   $('.progress').val(value)
-
   return this
-}
-
-function CRC16_Check(puData) {
-  var len = puData.length
-
-  if (len > 0) {
-    var crc = 0x0000
-
-    for (var i = 0; i < 1023; i++) {
-      crc = crc ^ ((puData[3 + i] << 8) & 0xff00)
-
-      for (var j = 0; j < 8; j++) {
-        if (crc & 0x8000) crc = (crc << 1) ^ 0x1021
-        //CRC-ITU
-        else crc = crc << 1
-      }
-      crc &= 0xffff
-    }
-
-    var hi = (crc >> 8) & 0xff //高位置
-    var lo = crc & 0xff //低位置
-
-    puData[1027] = hi
-    puData[1028] = lo
-  }
 }
 
 firmware_flasher.parseData = function (data) {
@@ -174,7 +150,7 @@ firmware_flasher.parseData = function (data) {
   } else if (data[0] == 6) {
     if (starting == 2) {
       firmware_flasher.flashFirmwareAck = true
-      var bufData = new Buffer(1029)
+      var bufData = Buffer.alloc(1029)
 
       fs.open(binFilePath, 'r', function (err, fd) {
         if (err) {
@@ -210,7 +186,7 @@ firmware_flasher.parseData = function (data) {
       firmware_flasher.flashingMessage('Flashing ...', firmware_flasher.FLASH_MESSAGE_TYPES.NEUTRAL)
       firmware_flasher.flashProgress((packNum / packLen) * 100)
     } else if (starting == 3) {
-      var buf = new Buffer(1)
+      var buf = Buffer.alloc(1)
       buf[0] = 0x04
 
       port.write(buf, (err) => {
@@ -238,120 +214,6 @@ firmware_flasher.parseData = function (data) {
   }
 }
 
-function isExistOption2(id, value) {
-  var isExist = false
-  var count = $('#' + id).find('option').length
-
-  for (var i = 0; i < count; i++) {
-    if ($('#' + id).get(0).options[i].value == value) {
-      isExist = true
-      break
-    }
-  }
-  return isExist
-}
-
-function addOptionValue2(id, value, text) {
-  if (!isExistOption2(id, value)) {
-    $('#' + id).append('<option value=' + value + '>' + text + '</option>')
-  }
-}
-
-function readJsonFile(fileName) {
-  jsonFile.readFile(fileName, function (err, jsonData) {
-    if (err) throw err
-    if (jsonData.status !== 404) {
-      $('#boardTarget').empty()
-      addOptionValue2('boardTarget', 1, 'Cetus')
-      addOptionValue2('boardTarget', 2, 'Cetus Pro')
-      addOptionValue2('boardTarget', 3, 'Lite V3')
-      addOptionValue2('boardTarget', 4, 'Cetus X')
-      addOptionValue2('boardTarget', 5, 'Cetus X HD')
-      addOptionValue2('boardTarget', 6, 'Aquila16')
-
-      $('#boardVersion').empty()
-      for (let i = 0; i < jsonData.Cetus.length; i++) {
-        addOptionValue2('boardVersion', i, jsonData.Cetus[i].version)
-      }
-      firmware_flasher.firmware_version = jsonData
-
-      console.log('----------------------------------')
-    } else {
-    }
-  })
-}
-
-function loadRemoteJsonFile() {
-  var xhr = new XMLHttpRequest()
-  loadJsonFileFromGithubSuccessful = true
-
-  xhr.responseType = 'arraybuffer'
-  xhr.onload = function (e) {
-    var array = new Uint8Array(xhr.response)
-    var file_path = path.join(__dirname, './board.json')
-    fs.writeFile(file_path, array, 'utf8', (err) => {
-      if (err) {
-        console.log('error')
-      } else {
-        console.log('ok')
-        readJsonFile(file_path)
-      }
-    })
-  }
-
-  //1.优先访问github上的固件
-  setTimeout(() => {
-    xhr.open('GET', 'https://github.com/BETAFPV/BETAFPV.github.io/releases/download/v3.0.0/board.json', true)
-    xhr.send(null)
-    console.log('get literadio.json from github')
-  }, 1000)
-
-  xhr.onreadystatechange = function () {
-    if (xhr.readyState == 4) {
-      if (xhr.status == 200) {
-        //ok
-        //从github上加载固件成功
-        // alert("Request firmware successful: "+xhr.status);
-        loadJsonFileFromGithubSuccessful = true
-      } else {
-        //2.github无法访问切换到gittee上访问
-        if (loadJsonFileFromGithubSuccessful == true) {
-          loadJsonFileFromGithubSuccessful = false
-          console.log("can't load json file from github")
-        } else {
-          console.log("can't load json file from gitee")
-          const options = {
-            type      : 'warning',
-            buttons   : [i18n.getMessage('Confirm')],
-            defaultId : 0,
-            title     : i18n.getMessage('FailedToLoadFile'),
-            message   : i18n.getMessage('InvalidNetwork'),
-            noLink    : true,
-          }
-          let WIN = getCurrentWindow()
-          dialog.showMessageBoxSync(WIN, options)
-        }
-      }
-    }
-  }
-
-  //3.超市无法连接github则从gitee上加载
-  setTimeout(() => {
-    if (loadJsonFileFromGithubSuccessful == false) {
-      xhr.open('GET', 'https://gitee.com/huang_wen_tao123/flight_control_firmware/attach_files/907650/download/board.json', true)
-      xhr.send(null)
-      console.log('get json file from gitee')
-      ;``
-    }
-  }, 4000)
-
-  xhr.timeout = 2500
-  xhr.ontimeout = function () {
-    loadJsonFileFromGithubSuccessful = false
-    console.log('get json file time out')
-  }
-}
-
 firmware_flasher.initialize = function (callback) {
   const self = this
   self.enableFlashing(false, 1)
@@ -361,7 +223,7 @@ firmware_flasher.initialize = function (callback) {
   $('#content').load('./src/html/firmware_flasher.html', function () {
     i18n.localizePage()
 
-    $('a.load_file').click(function () {
+    $('a.load_file').on('click', function () {
       self.enableFlashing(false, 1)
       self.enableFlashing(false, 3)
       self.enableFlashing(false, 5)
@@ -444,14 +306,14 @@ firmware_flasher.initialize = function (callback) {
         })
     })
 
-    $('a.flash_firmware').click(function () {
+    $('a.flash_firmware').on('click', function () {
       if ($(this).hasClass('disabled')) {
         return
       }
       if (GUI.connect_lock) {
         //串口已连接
         packNum = 0
-        var buf = Buffer(1)
+        var buf = Buffer.alloc(1)
         buf[0] = 0x01
         port.write(buf, (err) => {
           if (err) return console.log('write Error: ', err.message)
@@ -502,14 +364,14 @@ firmware_flasher.initialize = function (callback) {
       }
     })
 
-    $('a.flash_opf').click(function () {
+    $('a.flash_opf').on('click', function () {
       if ($(this).hasClass('disabled')) {
         return
       }
       if (GUI.connect_lock) {
         //串口已连接
         packNum = 0
-        var buf = Buffer(1)
+        var buf = Buffer.alloc(1)
         buf[0] = 0x03
 
         port.write(buf, (err) => {
@@ -559,14 +421,14 @@ firmware_flasher.initialize = function (callback) {
       }
     })
 
-    $('a.flash_OSD').click(function () {
+    $('a.flash_OSD').on('click', function () {
       if ($(this).hasClass('disabled')) {
         return
       }
       if (GUI.connect_lock) {
         //串口已连接
         packNum = 0
-        var buf = Buffer(1)
+        var buf = Buffer.alloc(1)
         buf[0] = 0x05
 
         port.write(buf, (err) => {
@@ -616,196 +478,26 @@ firmware_flasher.initialize = function (callback) {
       }
     })
 
-    $('a.load_remote_file').click(function () {
+    $('a.load_remote_file').on('click', function () {
       if ($(this).hasClass('disabled')) {
         return
       }
-
-      let targetBoardSelected = $('#boardTarget option:selected').text()
-      let targetVersionSelected = $('#boardVersion option:selected').text()
-      loadFirmwareFromGithubSuccessful = true
-      var str = targetBoardSelected + '_' + targetVersionSelected + '.bin'
-      var urlValue = 'https://github.com/BETAFPV/BETAFPV.github.io/releases/download/v3.0.0/' + str
-
-      var xhr = new XMLHttpRequest()
-      xhr.open('GET', urlValue, true)
-      xhr.responseType = 'arraybuffer'
-      xhr.onload = function (e) {
-        var array = new Uint8Array(xhr.response)
-
-        fs.writeFile(path.join(__dirname, str), array, 'utf8', (err) => {
-          if (err) {
-            console.log('error')
-          } else {
-            binFilePath = path.join(__dirname, str)
-            fs.readFile(binFilePath, (err, binFile) => {
-              if (err) {
-                alert(err)
-              } else {
-                self.enableFlashing(true, 1)
-                binSize = binFile.length - 12
-                var binSizeTemp = binFile.length
-
-                packLen = Math.round(binSize / 1024)
-                if (packLen > 5) {
-                  self.enableFlashing(true, 1)
-                  firmware_flasher.flashingMessage(i18n.getMessage('firmwareFlasherRemoteFirmwareLoaded') + binFile.length + 'bytes ', self.FLASH_MESSAGE_TYPES.NEUTRAL)
-                  if (binFile[binSizeTemp - 12] == 0x5a) {
-                    let targetID = binFile[binSizeTemp - 11]
-                    if (targetID == flashTarget.flightControl) {
-                      $('#TargetID').text(i18n.getMessage('flightControl'))
-                      currentflashTarget = flashTarget.flightControl
-                    } else if (targetID == flashTarget.opticalFlow) {
-                      $('#TargetID').text(i18n.getMessage('Sensors'))
-                      currentflashTarget = flashTarget.opticalFlow
-                    } else if (targetID == flashTarget.OSD) {
-                      $('#TargetID').text(i18n.getMessage('OSD'))
-                      currentflashTarget = flashTarget.OSD
-                    }
-                    let boardID = binFile[binSizeTemp - 10]
-                    if (boardID == flashBoard.Cetus) {
-                      $('#BoardID').text('   Cetus')
-                    } else if (boardID == flashBoard.Cetus_pro) {
-                      if (str.includes('Cetus_pro_1.1.')) {
-                        $('#BoardID').text(i18n.getMessage('cetus_pro_hardware_lt_1_2'))
-                      } else if (str.includes('Cetus_pro_1.2.')) {
-                        $('#BoardID').text(i18n.getMessage('cetus_pro_hardware_gte_1_2'))
-                      } else {
-                        $('#BoardID').text('   Cetus Pro')
-                      }
-                    } else if (boardID == flashBoard.Lite_v3) {
-                      $('#BoardID').text('   Lite Brushed v3')
-                    }
-
-                    var versionID = '  v' + binFile[binSizeTemp - 9] + '.' + binFile[binSizeTemp - 8] + '.' + binFile[binSizeTemp - 7]
-                    $('#VersionID').text(versionID)
-
-                    var dateID = '  ' + binFile[binSizeTemp - 6] + binFile[binSizeTemp - 5] + binFile[binSizeTemp - 4] + binFile[binSizeTemp - 3] + '-' + binFile[binSizeTemp - 2] + '-' + binFile[binSizeTemp - 1]
-                    $('#DateID').text(dateID)
-
-                    $('#FileID').text(str)
-                  }
-                } else {
-                  self.enableFlashing(false, 1)
-                  firmware_flasher.flashingMessage(i18n.getMessage('firmwareFlasherFailedToLoadOnlineFirmware'))
-                  $('#FileID').text('Unrecognized firmware!')
-                  $('#TargetID').text('    ')
-                  $('#BoardID').text('   ')
-                  $('#VersionID').text(' ')
-                  $('#DateID').text(' ')
-                }
-              }
-            })
-          }
-        })
-      }
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState == 2) {
-          console.log('The server is connected:' + xhr.status)
-        } else if (xhr.readyState == 3) {
-          console.log('Request was received :' + xhr.status)
-        }
-
-        if (xhr.readyState == 4) {
-          if (xhr.status == 200) {
-            //ok
-            loadFirmwareFromGithubSuccessful = true
-          } else {
-            if (loadFirmwareFromGithubSuccessful == true) {
-              loadFirmwareFromGithubSuccessful = false
-              console.log("can't load firmware from github")
-            } else {
-              console.log("can't load firmware from gitee")
-              const options = {
-                type      : 'warning',
-                buttons   : [i18n.getMessage('Confirm')],
-                defaultId : 0,
-                title     : i18n.getMessage('FailedToLoadFile'),
-                message   : i18n.getMessage('InvalidNetwork'),
-                noLink    : true,
-              }
-              let WIN = getCurrentWindow()
-              dialog.showMessageBoxSync(WIN, options)
-            }
-          }
-        }
-      }
-
-      xhr.send()
-      xhr.timeout = 2000
-      xhr.ontimeout = function () {
-        console.log('get firmware time out')
-        loadFirmwareFromGithubSuccessful = false
-      }
-      setTimeout(() => {
-        if (loadFirmwareFromGithubSuccessful == false) {
-          let firmware_name = targetBoardSelected + '_' + targetVersionSelected + '.bin'
-          switch (firmware_name) {
-            case 'Cetus_1.0.0.bin':
-              xhr.open('GET', 'https://gitee.com/huang_wen_tao123/flight_control_firmware/attach_files/865138/download/Cetus_1.0.0.bin', true)
-              xhr.send(null)
-              break
-            case 'Cetus_1.0.1.bin':
-              xhr.open('GET', 'https://gitee.com/huang_wen_tao123/flight_control_firmware/attach_files/908085/download/Cetus_1.0.1.bin', true)
-              xhr.send(null)
-              break
-            case 'Cetus_pro_1.1.1.bin':
-              xhr.open('GET', 'https://gitee.com/huang_wen_tao123/flight_control_firmware/attach_files/876366/download/Cetus_pro_1.1.1.bin', true)
-              xhr.send(null)
-              break
-            case 'Cetus_pro_1.1.2.bin':
-              xhr.open('GET', 'https://gitee.com/huang_wen_tao123/flight_control_firmware/attach_files/907652/download/Cetus_pro_1.1.2.bin', true)
-              xhr.send(null)
-              break
-            case 'Cetus_pro_1.2.1.bin':
-              xhr.open('GET', 'https://gitee.com/huang_wen_tao123/flight_control_firmware/attach_files/876367/download/Cetus_pro_1.2.1.bin', true)
-              xhr.send(null)
-              break
-            case 'Cetus_pro_1.2.2.bin':
-              xhr.open('GET', 'https://gitee.com/huang_wen_tao123/flight_control_firmware/attach_files/907654/download/Cetus_pro_1.2.2.bin', true)
-              xhr.send(null)
-              break
-            case 'Lite_v3_1.0.0.bin':
-              xhr.open('GET', 'https://gitee.com/huang_wen_tao123/flight_control_firmware/attach_files/867760/download/Lite_v3_1.0.0.bin', true)
-              xhr.send(null)
-              break
-            case 'Lite_v3_1.0.1.bin':
-              xhr.open('GET', 'https://gitee.com/huang_wen_tao123/flight_control_firmware/attach_files/907651/download/Lite_v3_1.0.1.bin', true)
-              xhr.send(null)
-              break
-            default:
-              xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/856701/download/null.bin', true)
-              xhr.send(null)
-              break
-          }
-        }
-      }, 2500)
+      loadRemoteFirmwareFile(self)
     })
 
-    $('select[id="boardTarget"]').change(function () {
+    $('select[id="boardTarget"]').on('change', function () {
       console.log('FC boardTarget change:' + boardTarget)
       firmware_flasher.boardTarget = parseInt($(this).val(), 10)
+
       switch (firmware_flasher.boardTarget) {
         case 1: //cetus
-          $('#boardVersion').empty()
-          for (let i = 0; i < firmware_flasher.firmware_version.Cetus.length; i++) {
-            console.log('firmware_flasher.firmware_version.Cetus.length:' + firmware_flasher.firmware_version.Cetus.length)
-            addOptionValue2('boardVersion', i, firmware_flasher.firmware_version.Cetus[i].version)
-          }
+          addBoarOption(firmware_flasher.firmware_version.Cetus)
           break
         case 2: //cetus_pro
-          $('#boardVersion').empty()
-          for (let i = 0; i < firmware_flasher.firmware_version.Cetus_pro.length; i++) {
-            console.log('firmware_flasher.firmware_version.Cetus_pro.length:' + firmware_flasher.firmware_version.Cetus_pro.length)
-            addOptionValue2('boardVersion', i, firmware_flasher.firmware_version.Cetus_pro[i].version)
-          }
+          addBoarOption(firmware_flasher.firmware_version.Cetus_pro)
           break
         case 3: //lite_v3
-          $('#boardVersion').empty()
-          console.log('firmware_flasher.firmware_version.Lite_v3.length:' + firmware_flasher.firmware_version.Lite_v3.length)
-          for (let i = 0; i < firmware_flasher.firmware_version.Lite_v3.length; i++) {
-            addOptionValue2('boardVersion', i, firmware_flasher.firmware_version.Lite_v3[i].version)
-          }
+          addBoarOption(firmware_flasher.firmware_version.Lite_v3)
           break
         default:
           break

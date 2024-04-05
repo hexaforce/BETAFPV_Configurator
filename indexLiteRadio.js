@@ -3,6 +3,7 @@ const semver = require('semver')
 var liteRadio_configurator_version = 'v2.0-RC2'
 var { shell } = require('electron')
 var HID = require('node-hid')
+var { addOptionValue, listSerialPorts, loadLanguage, find_serial_port_doc } = require('./src/js/utils.js')
 
 var lastPortCount = 0
 var Command_ID = {
@@ -193,7 +194,7 @@ HidConfig.compareFirmwareVersion = function () {
       let labeText = i18n.getMessage('upgrade_the_firmware_of_liteRadio')
       $('label[id="VersionNotMatchedDialogLabel"]').text(labeText)
       dialogVersionNotMatched.showModal()
-      $('.VersionNotMatched-confirmbtn').click(function () {
+      $('.VersionNotMatched-confirmbtn').on('click', function () {
         dialogVersionNotMatched.close()
       })
     }
@@ -226,70 +227,19 @@ function channel_data_map(input, Omin, Omax, Nmin, Nmax) {
   return (((Nmax - Nmin) / (Omax - Omin)) * (input - Omin) + Nmin).toFixed(0)
 }
 
-function isExistOption(id, value) {
-  var isExist = false
-  var count = $('#' + id).find('option').length
-
-  for (var i = 0; i < count; i++) {
-    if ($('#' + id).get(0).options[i].value == value) {
-      isExist = true
-      break
-    }
-  }
-  return isExist
-}
-
-function addOptionValue(id, value, text) {
-  if (!isExistOption(id, value)) {
-    $('#' + id).append('<option value=' + value + '>' + text + '</option>')
-  }
-}
-
-async function listSerialPorts() {
-  await SerialPort.list().then((ports, err) => {
-    if (ports.length !== lastPortCount) {
-      $('#port option').each(function () {
-        $(this).remove()
-      })
-    }
-
-    for (let i = 0; i < ports.length; i++) {
-      if ((ports[i].productId == '572B' || ports[i].productId == '5740') && (ports[i].vendorId == '0483' || ports[i].vendorId == '0493')) {
-        addOptionValue('port', i, ports[i].path)
-      }
-    }
-    lastPortCount = ports.length
-  })
-}
-
 setTimeout(function listPorts() {
   listSerialPorts()
   setTimeout(listPorts, 500)
 }, 500)
 
-setTimeout(function loadLanguage() {
-  i18next.changeLanguage(i18n.Storage_language)
-  if (i18n.Storage_language == 'en') {
-    document.getElementById('wechat_facebook_logo_src_switch').src = './src/images/flogo_RGB_HEX-1024.svg'
-  } else if (i18n.Storage_language == 'zh') {
-    document.getElementById('wechat_facebook_logo_src_switch').src = './src/images/wechat_icon.png'
-  }
-}, 500)
+setTimeout(loadLanguage, 500)
 
 window.onload = function () {
   i18n.init(function () {
-    let Unable_to_find_serial_port = document.getElementById('Unable_to_find_serial_port')
-    Unable_to_find_serial_port.onclick = function (e) {
-      e.preventDefault()
-      if (i18n.selectedLanguage == 'zh') {
-        shell.openExternal('https://github.com/BETAFPV/BETAFPV_Configurator/blob/master/docs/UnableToFindSerialPort_CN.md')
-      } else {
-        shell.openExternal('https://github.com/BETAFPV/BETAFPV_Configurator/blob/master/docs/UnableToFindSerialPort_EN.md')
-      }
-    }
+    find_serial_port_doc()
 
     $('label[id="liteRadio_configurator_version"]').text(liteRadio_configurator_version)
-    $('div.open_hid_device a.connect').click(function () {
+    $('div.open_hid_device a.connect').on('click', function () {
       if (HidConfig.HID_Connect_State == HidConnectStatus.disConnect) {
         HidConfig.Have_Receive_HID_Data = false
         HidConfig.HID_Connect_State = HidConnectStatus.connecting
@@ -327,7 +277,7 @@ window.onload = function () {
             $('div#hidbutton a.connect').removeClass('active')
             const dialogConfirmHIDPowerOff = $('.dialogConfirmHIDPowerOff')[0]
             dialogConfirmHIDPowerOff.showModal()
-            $('.HIDPowerOffDialog-confirmbtn').click(function () {
+            $('.HIDPowerOffDialog-confirmbtn').on('click', function () {
               dialogConfirmHIDPowerOff.close()
             })
           }
@@ -879,7 +829,7 @@ window.onload = function () {
           $('div.open_hid_device div.connect_hid').text(i18n.getMessage('Connect_HID'))
           const dialogHIDisDisconnect = $('.dialogHIDisDisconnect')[0]
           //dialogHIDisDisconnect.showModal();
-          $('.HIDisDisconnect-confirmbtn').click(function () {
+          $('.HIDisDisconnect-confirmbtn').on('click', function () {
             dialogHIDisDisconnect.close()
           })
           // alert("HID Device Disconnected!");
@@ -894,7 +844,7 @@ window.onload = function () {
     })
 
     const ui_tabs = $('#tabs > ul')
-    $('a', ui_tabs).click(function () {
+    $('a', ui_tabs).on('click', function () {
       if ($(this).parent().hasClass('active') === false && !GUI.tab_switch_in_progress) {
         const self = this
         const tabClass = $(self).parent().prop('class')

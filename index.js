@@ -1,61 +1,20 @@
 const { SerialPort } = require('serialport')
+const { usb } = require('usb')
 var { shell } = require('electron')
 const { dialog, getCurrentWindow } = require('@electron/remote')
+var { addOptionValue, listSerialPorts, loadLanguage, find_serial_port_doc } = require('./src/js/utils.js')
 
 var flightcontrol_configurator_version = 'v2.0-RC2'
 let isFlasherTab = 0
 var lastPortCount = 0
 
-function isExistOption(id, value) {
-  var isExist = false
-  var count = $('#' + id).find('option').length
-
-  for (var i = 0; i < count; i++) {
-    if ($('#' + id).get(0).options[i].value == value) {
-      isExist = true
-      break
-    }
-  }
-  return isExist
-}
-
-function addOptionValue(id, value, text) {
-  if (!isExistOption(id, value)) {
-    $('#' + id).append('<option value=' + value + '>' + text + '</option>')
-  }
-}
-
-async function listSerialPorts() {
-  await SerialPort.list().then((ports, err) => {
-    if (ports.length !== lastPortCount) {
-      $('#port option').each(function () {
-        $(this).remove()
-      })
-    }
-
-    for (let i = 0; i < ports.length; i++) {
-      if (ports[i].productId == '5740' && (ports[i].vendorId == '0483' || ports[i].vendorId == '0493')) {
-        addOptionValue('port', i, ports[i].path)
-      }
-    }
-    lastPortCount = ports.length
-  })
-}
-
 setTimeout(function listPorts() {
   listSerialPorts()
+  // listUSBDeviceList()
   setTimeout(listPorts, 500)
 }, 500)
 
-setTimeout(function loadLanguage() {
-  i18next.changeLanguage(i18n.Storage_language)
-  if (!document.getElementById('wechat_facebook_logo_src_switch')) return
-  if (i18n.Storage_language == 'en') {
-    document.getElementById('wechat_facebook_logo_src_switch').src = './src/images/flogo_RGB_HEX-1024.svg'
-  } else if (i18n.Storage_language == 'zh') {
-    document.getElementById('wechat_facebook_logo_src_switch').src = './src/images/wechat_icon.png'
-  }
-}, 500)
+setTimeout(loadLanguage, 500)
 
 mavlinkSend = function (writedata) {
   port.write(writedata, function (err) {
@@ -67,18 +26,10 @@ mavlinkSend = function (writedata) {
 
 window.onload = function () {
   i18n.init(function () {
-    let Unable_to_find_serial_port = document.getElementById('Unable_to_find_serial_port')
-    Unable_to_find_serial_port.onclick = function (e) {
-      e.preventDefault()
-      if (i18n.selectedLanguage == 'zh') {
-        shell.openExternal('https://github.com/BETAFPV/BETAFPV_Configurator/blob/master/docs/UnableToFindSerialPort_CN.md')
-      } else {
-        shell.openExternal('https://github.com/BETAFPV/BETAFPV_Configurator/blob/master/docs/UnableToFindSerialPort_EN.md')
-      }
-    }
+    find_serial_port_doc()
 
     $('label[id="flightcontrol_configurator_version"]').text(flightcontrol_configurator_version)
-    $('div.connect_controls a.connect').click(function () {
+    $('div.connect_controls a.connect').on('click', function () {
       if (GUI.connect_lock != true) {
         const thisElement = $(this)
         const clicks = thisElement.data('clicks')
@@ -192,7 +143,7 @@ window.onload = function () {
     }
 
     const ui_tabs = $('#tabs > ul')
-    $('a', ui_tabs).click(function () {
+    $('a', ui_tabs).on('click', function () {
       if ($(this).parent().hasClass('active') === false && !GUI.tab_switch_in_progress) {
         const self = this
         const tabClass = $(self).parent().prop('class')
