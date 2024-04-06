@@ -1,8 +1,9 @@
 const { SerialPort } = require('serialport')
 const { usb } = require('usb')
+var HID = require('node-hid')
 var { shell } = require('electron')
 const { dialog, getCurrentWindow } = require('@electron/remote')
-var { addOptionValue, listSerialPorts, loadLanguage, find_serial_port_doc } = require('./src/js/utils.js')
+var { addOptionValue, listSerialPorts, listUSBDeviceList, listHIDDeviceList, loadLanguage, find_serial_port_doc } = require('./src/js/utils.js')
 
 var flightcontrol_configurator_version = 'v2.0-RC2'
 let isFlasherTab = 0
@@ -11,6 +12,7 @@ var lastPortCount = 0
 setTimeout(function listPorts() {
   listSerialPorts()
   // listUSBDeviceList()
+  // listHIDDeviceList()
   setTimeout(listPorts, 500)
 }, 500)
 

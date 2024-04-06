@@ -1,9 +1,10 @@
 const { SerialPort } = require('serialport')
+const { usb } = require('usb')
+var HID = require('node-hid')
 const semver = require('semver')
 var liteRadio_configurator_version = 'v2.0-RC2'
 var { shell } = require('electron')
-var HID = require('node-hid')
-var { addOptionValue, listSerialPorts, loadLanguage, find_serial_port_doc } = require('./src/js/utils.js')
+var { addOptionValue, listSerialPorts, listUSBDeviceList, listHIDDeviceList, loadLanguage, find_serial_port_doc } = require('./src/js/utils.js')
 
 var lastPortCount = 0
 var Command_ID = {
@@ -229,6 +230,8 @@ function channel_data_map(input, Omin, Omax, Nmin, Nmax) {
 
 setTimeout(function listPorts() {
   listSerialPorts()
+  // listUSBDeviceList()
+  // listHIDDeviceList()
   setTimeout(listPorts, 500)
 }, 500)
 

@@ -43,35 +43,38 @@ async function listSerialPorts() {
 
 async function listUSBDeviceList() {
   const devices = usb.getDeviceList()
+  console.log('USB Device -------------------------------')
   for (const device of devices) {
+    // console.log(device.deviceDescriptor)
     const { idVendor, idProduct, bcdDevice, iManufacturer, iProduct } = device.deviceDescriptor
+    async function getStringDescriptor(desc_index) {
+      return new Promise((resolve, reject) => {
+        device.getStringDescriptor(desc_index, (error, data) => {
+          error ? reject(error) : resolve(data)
+        })
+      })
+    }
 
     try {
       device.open()
-      device.getStringDescriptor(iManufacturer, (error, data) => {
-        if (error) {
-          console.error('Error retrieving string descriptor:', error)
-        } else {
-          console.log('4 iManufacturer:', data)
-        }
-      })
-      device.getStringDescriptor(iProduct, (error, data) => {
-        if (error) {
-          console.error('Error retrieving string descriptor:', error)
-        } else {
-          console.log('5 iProduct:', data)
-        }
-      })
-      // データの送受信
-      // device.controlTransfer(0x80, 0x06, 0x0100, 0x0000, Buffer.alloc(4), (error, data) => {
-      //   if (error) {
-      //     console.error('Error communicating with device:', error)
-      //   } else {
-      //     console.log('Received data:', data)
-      //   }
-      // })
-    } catch (error) {}
+      var manufacturer = await getStringDescriptor(iManufacturer)
+      var product = await getStringDescriptor(iProduct)
+      console.log(`${manufacturer} - ${product}`)
+    } catch (error) {
+      console.log('Error:', error)
+    } finally {
+      device.close()
+    }
   }
+}
+
+async function listHIDDeviceList() {
+  var devices = HID.devices()
+  console.log('HID Device -------------------------------')
+  devices.forEach((device) => {
+    const { vendorId, manufacturer, product, productId, serialNumber, pathusage, usagePage } = device
+    console.log(`${manufacturer} - ${product}`)
+  })
 }
 
 function loadLanguage() {
@@ -99,4 +102,4 @@ function find_serial_port_doc() {
   }
 }
 
-module.exports = { addOptionValue, addBoarOption, listSerialPorts, listUSBDeviceList, loadLanguage, find_serial_port_doc }
+module.exports = { addOptionValue, addBoarOption, listSerialPorts, listUSBDeviceList, listHIDDeviceList, loadLanguage, find_serial_port_doc }
