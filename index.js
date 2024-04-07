@@ -1,6 +1,8 @@
 const { SerialPort } = require('serialport')
 const { usb } = require('usb')
 var HID = require('node-hid')
+const os = require('os')
+const path = require('path')
 var { shell } = require('electron')
 const { dialog, getCurrentWindow } = require('@electron/remote')
 var { addOptionValue, listSerialPorts, listUSBDeviceList, listHIDDeviceList, loadLanguage, find_serial_port_doc } = require('./src/js/utils.js')
@@ -9,10 +11,16 @@ var flightcontrol_configurator_version = 'v2.0-RC2'
 let isFlasherTab = 0
 var lastPortCount = 0
 
+var VENDOR_ID = 1155
+var PRODUCT_ID = [22288, 22352]
+
+let channels = new Array(8)
+var hidDevice = null
+
 setTimeout(function listPorts() {
-  listSerialPorts()
+  // listSerialPorts()
   // listUSBDeviceList()
-  // listHIDDeviceList()
+  listHIDDeviceList()
   setTimeout(listPorts, 500)
 }, 500)
 
@@ -44,14 +52,19 @@ window.onload = function () {
 
         const selected_baud = parseInt($('div#port-picker #baud').val())
 
-        let COM = $('div#port-picker #port option:selected').text()
+        // let COM = $('div#port-picker #port option:selected').text()
+        let COM = $('div#port-picker #port option:selected').val()
+
         if (!COM || COM.trim() === '') return
-        port = new SerialPort(COM, {
-          baudRate : parseInt(selected_baud),
-          dataBits : 8,
-          parity   : 'none',
-          stopBits : 1,
-        })
+
+        // port = new SerialPort(COM, {
+        //   baudRate : parseInt(selected_baud),
+        //   dataBits : 8,
+        //   parity   : 'none',
+        //   stopBits : 1,
+        // })
+        port = new HID.HID(COM)
+        console.log(port)
 
         //open事件监听
         port.on('open', () => {

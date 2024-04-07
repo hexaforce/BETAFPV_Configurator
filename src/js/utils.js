@@ -31,8 +31,9 @@ async function listSerialPorts() {
         $(this).remove()
       })
     }
-
+    // console.log('Serial Port -------------------------------')
     for (let i = 0; i < ports.length; i++) {
+      console.log(ports[i])
       if (ports[i].productId == '5740' && (ports[i].vendorId == '0483' || ports[i].vendorId == '0493')) {
         addOptionValue('port', i, ports[i].path)
       }
@@ -43,7 +44,7 @@ async function listSerialPorts() {
 
 async function listUSBDeviceList() {
   const devices = usb.getDeviceList()
-  console.log('USB Device -------------------------------')
+  // console.log('USB Device -------------------------------')
   for (const device of devices) {
     // console.log(device.deviceDescriptor)
     const { idVendor, idProduct, bcdDevice, iManufacturer, iProduct } = device.deviceDescriptor
@@ -56,6 +57,7 @@ async function listUSBDeviceList() {
     }
 
     try {
+      // TODO: admin permission required
       device.open()
       var manufacturer = await getStringDescriptor(iManufacturer)
       var product = await getStringDescriptor(iProduct)
@@ -70,11 +72,21 @@ async function listUSBDeviceList() {
 
 async function listHIDDeviceList() {
   var devices = HID.devices()
-  console.log('HID Device -------------------------------')
-  devices.forEach((device) => {
-    const { vendorId, manufacturer, product, productId, serialNumber, pathusage, usagePage } = device
-    console.log(`${manufacturer} - ${product}`)
-  })
+  if (devices.length !== lastPortCount) {
+    $('#port option').each(function () {
+      $(this).remove()
+    })
+  }
+  // console.log('HID Device -------------------------------')
+  for (let i = 0; i < devices.length; i++) {
+    // console.log(devices[i])
+    var label = `${devices[i].manufacturer} - ${devices[i].product}`
+    // console.log(label)
+    if (PRODUCT_ID.includes(devices[i].productId) && devices[i].vendorId == VENDOR_ID) {
+      addOptionValue('port', devices[i].path, label)
+    }
+  }
+  lastPortCount = devices.length
 }
 
 function loadLanguage() {

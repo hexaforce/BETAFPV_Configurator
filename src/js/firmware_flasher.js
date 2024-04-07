@@ -1,5 +1,3 @@
-const os = require('os')
-const path = require('path')
 var jsonFile = require('jsonfile')
 var jsonfileName = 'board.json'
 var { loadRemoteJsonFile, loadRemoteFirmwareFile } = require('./src/js/firmware_flasherDownloader.js')
