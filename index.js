@@ -26,7 +26,6 @@ setTimeout(function listPorts() {
 
 setTimeout(loadLanguage, 500)
 
-
 mavlinkSend = function (writedata) {
   // console.log("writedata:",writedata)
   // port.write(writedata, function (err) {
@@ -52,7 +51,6 @@ window.onload = function () {
         }
 
         GUI.configuration_loaded = false
-
 
         // let COM = $('div#port-picker #port option:selected').text()
         let COM = $('div#port-picker #port option:selected').val()

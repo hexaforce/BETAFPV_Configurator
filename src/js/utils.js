@@ -14,9 +14,13 @@ function isExistOption(id, value) {
   return isExist
 }
 
-function addOptionValue(id, value, text) {
+function addOptionValue(id, value, text, enable = true) {
   if (!isExistOption(id, value)) {
-    $('#' + id).append('<option value=' + value + '>' + text + '</option>')
+    if (enable) {
+      $('#' + id).append('<option value=' + value + '>' + text + '</option>')
+    } else {
+      $('#' + id).append('<option value=' + value + ' disabled >' + text + '</option>')
+    }
   }
 }
 
@@ -37,9 +41,8 @@ async function listSerialPorts() {
     // console.log('Serial Port -------------------------------')
     for (let i = 0; i < ports.length; i++) {
       console.log(ports[i])
-      if (ports[i].productId == '5740' && (ports[i].vendorId == '0483' || ports[i].vendorId == '0493')) {
-        addOptionValue('port', i, ports[i].path)
-      }
+      var enable = ports[i].productId == '5740' && (ports[i].vendorId == '0483' || ports[i].vendorId == '0493')
+      addOptionValue('port', i, ports[i].path, enable)
     }
     lastPortCount = ports.length
   })
@@ -84,10 +87,8 @@ async function listHIDDeviceList() {
   for (let i = 0; i < devices.length; i++) {
     // console.log(devices[i])
     var label = `${devices[i].manufacturer} - ${devices[i].product}`
-    // console.log(label)
-    if (PRODUCT_ID.includes(devices[i].productId) && devices[i].vendorId == VENDOR_ID) {
-      addOptionValue('port', devices[i].path, label)
-    }
+    var enable = PRODUCT_ID.includes(devices[i].productId) && devices[i].vendorId == VENDOR_ID
+    addOptionValue('port', devices[i].path, label, enable)
   }
   lastPortCount = devices.length
 }
