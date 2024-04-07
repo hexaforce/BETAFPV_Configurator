@@ -6,6 +6,9 @@ var liteRadio_configurator_version = 'v2.0-RC2'
 var { shell } = require('electron')
 var { addOptionValue, listSerialPorts, listUSBDeviceList, listHIDDeviceList, loadLanguage, find_serial_port_doc } = require('./src/js/utils.js')
 
+var VENDOR_ID = 1155
+var PRODUCT_ID = [22288, 22352]
+
 var lastPortCount = 0
 var Command_ID = {
   CHANNELS_INFO_ID          : 0x01,
@@ -229,9 +232,9 @@ function channel_data_map(input, Omin, Omax, Nmin, Nmax) {
 }
 
 setTimeout(function listPorts() {
-  listSerialPorts()
+  // listSerialPorts()
   // listUSBDeviceList()
-  // listHIDDeviceList()
+  listHIDDeviceList()
   setTimeout(listPorts, 500)
 }, 500)
 
@@ -248,16 +251,21 @@ window.onload = function () {
         HidConfig.HID_Connect_State = HidConnectStatus.connecting
         $('div.open_hid_device div.connect_hid').text(i18n.getMessage('HID_Connecting'))
 
-        let COM = $('div#port-picker #port option:selected').text()
-        if (!COM || COM.trim() === '') return
-        const selected_baud = parseInt($('div#port-picker #baud').val())
+        // let COM = $('div#port-picker #port option:selected').text()
+        let COM = $('div#port-picker #port option:selected').val()
 
-        port = new SerialPort(COM, {
-          baudRate : parseInt(selected_baud),
-          dataBits : 8,
-          parity   : 'none',
-          stopBits : 1,
-        })
+        if (!COM || COM.trim() === '') return
+
+        // const selected_baud = parseInt($('div#port-picker #baud').val())
+        // port = new SerialPort(COM, {
+        //   baudRate : parseInt(selected_baud),
+        //   dataBits : 8,
+        //   parity   : 'none',
+        //   stopBits : 1,
+        // })
+
+        port = new HID.HID(COM)
+        console.log(port)
 
         setTimeout(() => {
           if (HidConfig.Have_Receive_HID_Data) {
@@ -273,6 +281,13 @@ window.onload = function () {
             HidConfig.LiteRadio_power = true
             HidConfig.HID_Connect_State = HidConnectStatus.disConnect
             port.close()
+            HidConfig.HID_Connect_State = HidConnectStatus.disConnect
+            $('div.open_hid_device div.connect_hid').text(i18n.getMessage('Connect_HID'))
+            $('#tabs ul.mode-connected').hide()
+            $('#tabs ul.mode-disconnected').show()
+            $('#tabs ul.mode-disconnected li a:first').click()
+            $('div#hidbutton a.connect').removeClass('active')
+
             $('div.open_hid_device div.connect_hid').text(i18n.getMessage('Connect_HID'))
             $('#tabs ul.mode-connected').hide()
             $('#tabs ul.mode-disconnected').show()
@@ -287,7 +302,7 @@ window.onload = function () {
         }, 1500)
 
         //open事件监听
-        port.on('open', () => {})
+        // port.on('open', () => {})
         port.on('data', function (data) {
           //解析遥控器发送过来的信息
           let rquestBuffer = new Buffer.alloc(8)
@@ -817,17 +832,23 @@ window.onload = function () {
           }
         })
 
-        port.on('close', () => {
+        // port.on('close', () => {
+        //   HidConfig.HID_Connect_State = HidConnectStatus.disConnect
+        //   $('div.open_hid_device div.connect_hid').text(i18n.getMessage('Connect_HID'))
+        //   $('#tabs ul.mode-connected').hide()
+        //   $('#tabs ul.mode-disconnected').show()
+        //   $('#tabs ul.mode-disconnected li a:first').click()
+        //   $('div#hidbutton a.connect').removeClass('active')
+        // })
+
+        port.on('error', function (err) {
+          port.close()
           HidConfig.HID_Connect_State = HidConnectStatus.disConnect
           $('div.open_hid_device div.connect_hid').text(i18n.getMessage('Connect_HID'))
           $('#tabs ul.mode-connected').hide()
           $('#tabs ul.mode-disconnected').show()
           $('#tabs ul.mode-disconnected li a:first').click()
           $('div#hidbutton a.connect').removeClass('active')
-        })
-
-        port.on('error', function (err) {
-          port.close()
           HidConfig.HID_Connect_State = HidConnectStatus.disConnect
           $('div.open_hid_device div.connect_hid').text(i18n.getMessage('Connect_HID'))
           const dialogHIDisDisconnect = $('.dialogHIDisDisconnect')[0]
@@ -843,6 +864,12 @@ window.onload = function () {
         })
       } else {
         port.close()
+        HidConfig.HID_Connect_State = HidConnectStatus.disConnect
+        $('div.open_hid_device div.connect_hid').text(i18n.getMessage('Connect_HID'))
+        $('#tabs ul.mode-connected').hide()
+        $('#tabs ul.mode-disconnected').show()
+        $('#tabs ul.mode-disconnected li a:first').click()
+        $('div#hidbutton a.connect').removeClass('active')
       }
     })
 

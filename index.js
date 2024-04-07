@@ -26,12 +26,15 @@ setTimeout(function listPorts() {
 
 setTimeout(loadLanguage, 500)
 
+
 mavlinkSend = function (writedata) {
-  port.write(writedata, function (err) {
-    if (err) {
-      return console.log('Error on write: ', err.message)
-    }
-  })
+  // console.log("writedata:",writedata)
+  // port.write(writedata, function (err) {
+  //   if (err) {
+  //     return console.log('Error on write: ', err.message)
+  //   }
+  // })
+  port.write(writedata)
 }
 
 window.onload = function () {
@@ -50,13 +53,13 @@ window.onload = function () {
 
         GUI.configuration_loaded = false
 
-        const selected_baud = parseInt($('div#port-picker #baud').val())
 
         // let COM = $('div#port-picker #port option:selected').text()
         let COM = $('div#port-picker #port option:selected').val()
 
         if (!COM || COM.trim() === '') return
 
+        // const selected_baud = parseInt($('div#port-picker #baud').val())
         // port = new SerialPort(COM, {
         //   baudRate : parseInt(selected_baud),
         //   dataBits : 8,
@@ -67,63 +70,79 @@ window.onload = function () {
         console.log(port)
 
         //open事件监听
-        port.on('open', () => {
-          setup.mavlinkConnected = false
-          GUI.connect_lock = true
-          $('div#connectbutton a.connect').addClass('active')
+        // port.on('open', () => {
+        setup.mavlinkConnected = false
+        GUI.connect_lock = true
+        $('div#connectbutton a.connect').addClass('active')
 
-          if (isFlasherTab == 0) {
-            FC.resetState()
-            $('div#connectbutton div.connect_state').text(i18n.getMessage('connecting')).addClass('active')
-            setTimeout(() => {
-              if (setup.mavlinkConnected == true) {
-                $('#tabs ul.mode-disconnected').hide()
-                $('#tabs ul.mode-connected').show()
-                $('#tabs ul.mode-connected li a:first').click()
-                $('div#connectbutton div.connect_state').text(i18n.getMessage('disconnect')).addClass('active')
-              } else {
-                port.close()
-                GUI.connect_lock = true
+        if (isFlasherTab == 0) {
+          FC.resetState()
+          $('div#connectbutton div.connect_state').text(i18n.getMessage('connecting')).addClass('active')
+          setTimeout(() => {
+            if (setup.mavlinkConnected == true) {
+              $('#tabs ul.mode-disconnected').hide()
+              $('#tabs ul.mode-connected').show()
+              $('#tabs ul.mode-connected li a:first').click()
+              $('div#connectbutton div.connect_state').text(i18n.getMessage('disconnect')).addClass('active')
+            } else {
+              port.close()
+              if (isFlasherTab == 0) {
+                console.log('close')
+                GUI.connect_lock = false
                 GUI.interval_remove('mavlink_heartbeat')
+                GUI.interval_remove('display_Info')
+                GUI.interval_remove('setup_data_pull_fast')
+                $('#tabs ul.mode-connected').hide()
+                $('#tabs ul.mode-disconnected').show()
+                $('#tabs ul.mode-disconnected li a:first').click()
                 $('div#connectbutton a.connect').removeClass('active')
-                const options = {
-                  type      : 'warning',
-                  buttons   : [i18n.getMessage('Confirm')],
-                  defaultId : 0,
-                  title     : i18n.getMessage('warningTitle'),
-                  message   : i18n.getMessage('NoConfigurationReceived'),
-                  detail    : i18n.getMessage('NoValidPort'),
-                  noLink    : true,
-                }
-                let WIN = getCurrentWindow()
-                dialog.showMessageBoxSync(WIN, options)
+                $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
+              } else {
+                GUI.connect_lock = false
+                $('div#connectbutton a.connect').removeClass('active')
+                $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
               }
-            }, 1000)
-            GUI.interval_add('mavlink_heartbeat', mavlink_msg_heartbeat, 1000, true)
-          } else {
-            $('div#connectbutton div.connect_state').text(i18n.getMessage('flashTab')).addClass('active')
-          }
-        })
+              GUI.connect_lock = true
+              GUI.interval_remove('mavlink_heartbeat')
+              $('div#connectbutton a.connect').removeClass('active')
+              const options = {
+                type      : 'warning',
+                buttons   : [i18n.getMessage('Confirm')],
+                defaultId : 0,
+                title     : i18n.getMessage('warningTitle'),
+                message   : i18n.getMessage('NoConfigurationReceived'),
+                detail    : i18n.getMessage('NoValidPort'),
+                noLink    : true,
+              }
+              let WIN = getCurrentWindow()
+              dialog.showMessageBoxSync(WIN, options)
+            }
+          }, 1000)
+          GUI.interval_add('mavlink_heartbeat', mavlink_msg_heartbeat, 1000, true)
+        } else {
+          $('div#connectbutton div.connect_state').text(i18n.getMessage('flashTab')).addClass('active')
+        }
+        // })
 
         //close事件监听
-        port.on('close', () => {
-          if (isFlasherTab == 0) {
-            console.log('close')
-            GUI.connect_lock = false
-            GUI.interval_remove('mavlink_heartbeat')
-            GUI.interval_remove('display_Info')
-            GUI.interval_remove('setup_data_pull_fast')
-            $('#tabs ul.mode-connected').hide()
-            $('#tabs ul.mode-disconnected').show()
-            $('#tabs ul.mode-disconnected li a:first').click()
-            $('div#connectbutton a.connect').removeClass('active')
-            $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
-          } else {
-            GUI.connect_lock = false
-            $('div#connectbutton a.connect').removeClass('active')
-            $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
-          }
-        })
+        // port.on('close', () => {
+        //   if (isFlasherTab == 0) {
+        //     console.log('close')
+        //     GUI.connect_lock = false
+        //     GUI.interval_remove('mavlink_heartbeat')
+        //     GUI.interval_remove('display_Info')
+        //     GUI.interval_remove('setup_data_pull_fast')
+        //     $('#tabs ul.mode-connected').hide()
+        //     $('#tabs ul.mode-disconnected').show()
+        //     $('#tabs ul.mode-disconnected li a:first').click()
+        //     $('div#connectbutton a.connect').removeClass('active')
+        //     $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
+        //   } else {
+        //     GUI.connect_lock = false
+        //     $('div#connectbutton a.connect').removeClass('active')
+        //     $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
+        //   }
+        // })
 
         //data事件监听
         port.on('data', (data) => {
@@ -148,6 +167,22 @@ window.onload = function () {
         })
       } else {
         port.close()
+        if (isFlasherTab == 0) {
+          console.log('close')
+          GUI.connect_lock = false
+          GUI.interval_remove('mavlink_heartbeat')
+          GUI.interval_remove('display_Info')
+          GUI.interval_remove('setup_data_pull_fast')
+          $('#tabs ul.mode-connected').hide()
+          $('#tabs ul.mode-disconnected').show()
+          $('#tabs ul.mode-disconnected li a:first').click()
+          $('div#connectbutton a.connect').removeClass('active')
+          $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
+        } else {
+          GUI.connect_lock = false
+          $('div#connectbutton a.connect').removeClass('active')
+          $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
+        }
       }
     })
 

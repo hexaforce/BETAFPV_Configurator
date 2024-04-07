@@ -1,3 +1,6 @@
+var VENDOR_ID = 1155
+var PRODUCT_ID = [22288, 22352]
+
 function isExistOption(id, value) {
   var isExist = false
   var count = $('#' + id).find('option').length
