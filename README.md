@@ -45,3 +45,24 @@ npm install --save-dev electron-rebuild
 - 输入**y**回车。
 
 
+### Development Feature
+```bash
+# FC firmware mode
+yarn start
+yarn dev
+
+# RC firmware mode
+yarn start-LiteRadio
+yarn dev-LiteRadio
+
+# Build package
+yarn package-win
+yarn package-mac
+yarn package-linux
+
+# RUN FC firmware mode
+./Linux/BETAFPV_Configurator-linux-x64/BETAFPV_Configurator
+
+# RUN RC firmware mode
+export LiteRadio=true & ./Linux/BETAFPV_Configurator-linux-x64/BETAFPV_Configurator
+```
