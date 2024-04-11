@@ -15,6 +15,9 @@ release/
 Windows/
 Mac/
 Linux/
+Windows-LiteRadio/
+Mac-LiteRadio/
+Linux-LiteRadio/
 testresults/
 .eslintcache
 
