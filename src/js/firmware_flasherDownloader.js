@@ -10,10 +10,8 @@ function readJsonFile(fileName) {
       addOptionValue('boardTarget', 5, 'Cetus X HD')
       addOptionValue('boardTarget', 6, 'Aquila16')
 
-      $('#boardVersion').empty()
-      for (let i = 0; i < jsonData.Cetus.length; i++) {
-        addOptionValue('boardVersion', i, jsonData.Cetus[i].version)
-      }
+      addBoarOption(jsonData.Cetus)
+
       firmware_flasher.firmware_version = jsonData
 
       console.log('----------------------------------')

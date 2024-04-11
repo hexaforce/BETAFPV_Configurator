@@ -8,10 +8,8 @@ function readJsonFile(fileName) {
       addOptionValue('boardTarget', 3, 'LiteRadio_2_SE_V2_CC2500')
       addOptionValue('boardTarget', 4, 'LiteRadio_3_SX1280')
       addOptionValue('boardTarget', 5, 'LiteRadio_3_CC2500')
-      $('#boardVersion').empty()
-      for (let i = 0; i < jsonData.LiteRadio_2_SE.length; i++) {
-        addOptionValue('boardVersion', i, jsonData.LiteRadio_2_SE[0].version)
-      }
+      addBoarOption(jsonData.LiteRadio_2_SE)
+
       firmware_flasher_LiteRadio.firmware_version = jsonData
 
       console.log('----------------------------------')

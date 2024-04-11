@@ -756,7 +756,6 @@ window.onload = function () {
                     break
                   case liteRadioUnitType.LiteRadio_2_SE_V2_SX1280:
                     document.getElementById('liteRadioInfoDevice').innerHTML = 'LiteRadio 2 SE V2 SX1280'
-                    console.log('LiteRadio 2 SE V2 SX1280')
                     break
                   case liteRadioUnitType.LiteRadio_2_SE_V2_CC2500:
                     document.getElementById('liteRadioInfoDevice').innerHTML = 'LiteRadio 2 SE V2 CC2500'

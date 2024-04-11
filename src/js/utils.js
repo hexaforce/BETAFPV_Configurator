@@ -29,6 +29,9 @@ function addBoarOption(firmware_versions) {
   for (let i = 0; i < firmware_versions.length; i++) {
     addOptionValue('boardVersion', i, firmware_versions[i].version)
   }
+  if ($('#boardVersion').get(0).options.length === 0) {
+    addOptionValue('boardVersion', -1, '(none)')
+  }
 }
 
 async function listSerialPorts() {
