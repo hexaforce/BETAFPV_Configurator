@@ -1,84 +1,47 @@
 const { SerialPort } = require('serialport')
+const { usb } = require('usb')
+var HID = require('node-hid')
+const os = require('os')
+const path = require('path')
 var { shell } = require('electron')
 const { dialog, getCurrentWindow } = require('@electron/remote')
+var { addOptionValue, listSerialPorts, listUSBDeviceList, listHIDDeviceList, loadLanguage, find_serial_port_doc } = require('./src/js/utils.js')
 
 var flightcontrol_configurator_version = 'v2.0-RC2'
 let isFlasherTab = 0
 var lastPortCount = 0
 
-function isExistOption(id, value) {
-  var isExist = false
-  var count = $('#' + id).find('option').length
+var VENDOR_ID = 1155
+var PRODUCT_ID = [22288, 22352]
 
-  for (var i = 0; i < count; i++) {
-    if ($('#' + id).get(0).options[i].value == value) {
-      isExist = true
-      break
-    }
-  }
-  return isExist
-}
-
-function addOptionValue(id, value, text) {
-  if (!isExistOption(id, value)) {
-    $('#' + id).append('<option value=' + value + '>' + text + '</option>')
-  }
-}
-
-async function listSerialPorts() {
-  await SerialPort.list().then((ports, err) => {
-    if (ports.length !== lastPortCount) {
-      $('#port option').each(function () {
-        $(this).remove()
-      })
-    }
-
-    for (let i = 0; i < ports.length; i++) {
-      if (ports[i].productId == '5740' && (ports[i].vendorId == '0483' || ports[i].vendorId == '0493')) {
-        addOptionValue('port', i, ports[i].path)
-      }
-    }
-    lastPortCount = ports.length
-  })
-}
+let channels = new Array(8)
+var hidDevice = null
 
 setTimeout(function listPorts() {
-  listSerialPorts()
+  // listSerialPorts()
+  // listUSBDeviceList()
+  listHIDDeviceList()
   setTimeout(listPorts, 500)
 }, 500)
 
-setTimeout(function loadLanguage() {
-  i18next.changeLanguage(i18n.Storage_language)
-  if (!document.getElementById('wechat_facebook_logo_src_switch')) return
-  if (i18n.Storage_language == 'en') {
-    document.getElementById('wechat_facebook_logo_src_switch').src = './src/images/flogo_RGB_HEX-1024.svg'
-  } else if (i18n.Storage_language == 'zh') {
-    document.getElementById('wechat_facebook_logo_src_switch').src = './src/images/wechat_icon.png'
-  }
-}, 500)
+setTimeout(loadLanguage, 500)
 
 mavlinkSend = function (writedata) {
-  port.write(writedata, function (err) {
-    if (err) {
-      return console.log('Error on write: ', err.message)
-    }
-  })
+  // console.log("writedata:",writedata)
+  // port.write(writedata, function (err) {
+  //   if (err) {
+  //     return console.log('Error on write: ', err.message)
+  //   }
+  // })
+  port.write(writedata)
 }
 
 window.onload = function () {
   i18n.init(function () {
-    let Unable_to_find_serial_port = document.getElementById('Unable_to_find_serial_port')
-    Unable_to_find_serial_port.onclick = function (e) {
-      e.preventDefault()
-      if (i18n.selectedLanguage == 'zh') {
-        shell.openExternal('https://github.com/BETAFPV/BETAFPV_Configurator/blob/master/docs/UnableToFindSerialPort_CN.md')
-      } else {
-        shell.openExternal('https://github.com/BETAFPV/BETAFPV_Configurator/blob/master/docs/UnableToFindSerialPort_EN.md')
-      }
-    }
+    find_serial_port_doc()
 
     $('label[id="flightcontrol_configurator_version"]').text(flightcontrol_configurator_version)
-    $('div.connect_controls a.connect').click(function () {
+    $('div.connect_controls a.connect').on('click', function () {
       if (GUI.connect_lock != true) {
         const thisElement = $(this)
         const clicks = thisElement.data('clicks')
@@ -89,75 +52,95 @@ window.onload = function () {
 
         GUI.configuration_loaded = false
 
-        const selected_baud = parseInt($('div#port-picker #baud').val())
+        // let COM = $('div#port-picker #port option:selected').text()
+        let COM = $('div#port-picker #port option:selected').val()
 
-        let COM = $('div#port-picker #port option:selected').text()
         if (!COM || COM.trim() === '') return
-        port = new SerialPort(COM, {
-          baudRate : parseInt(selected_baud),
-          dataBits : 8,
-          parity   : 'none',
-          stopBits : 1,
-        })
+
+        // const selected_baud = parseInt($('div#port-picker #baud').val())
+        // port = new SerialPort(COM, {
+        //   baudRate : parseInt(selected_baud),
+        //   dataBits : 8,
+        //   parity   : 'none',
+        //   stopBits : 1,
+        // })
+        port = new HID.HID(COM)
+        console.log(port)
 
         //open事件监听
-        port.on('open', () => {
-          setup.mavlinkConnected = false
-          GUI.connect_lock = true
-          $('div#connectbutton a.connect').addClass('active')
+        // port.on('open', () => {
+        setup.mavlinkConnected = false
+        GUI.connect_lock = true
+        $('div#connectbutton a.connect').addClass('active')
 
-          if (isFlasherTab == 0) {
-            FC.resetState()
-            $('div#connectbutton div.connect_state').text(i18n.getMessage('connecting')).addClass('active')
-            setTimeout(() => {
-              if (setup.mavlinkConnected == true) {
-                $('#tabs ul.mode-disconnected').hide()
-                $('#tabs ul.mode-connected').show()
-                $('#tabs ul.mode-connected li a:first').click()
-                $('div#connectbutton div.connect_state').text(i18n.getMessage('disconnect')).addClass('active')
-              } else {
-                port.close()
-                GUI.connect_lock = true
+        if (isFlasherTab == 0) {
+          FC.resetState()
+          $('div#connectbutton div.connect_state').text(i18n.getMessage('connecting')).addClass('active')
+          setTimeout(() => {
+            if (setup.mavlinkConnected == true) {
+              $('#tabs ul.mode-disconnected').hide()
+              $('#tabs ul.mode-connected').show()
+              $('#tabs ul.mode-connected li a:first').click()
+              $('div#connectbutton div.connect_state').text(i18n.getMessage('disconnect')).addClass('active')
+            } else {
+              port.close()
+              if (isFlasherTab == 0) {
+                console.log('close')
+                GUI.connect_lock = false
                 GUI.interval_remove('mavlink_heartbeat')
+                GUI.interval_remove('display_Info')
+                GUI.interval_remove('setup_data_pull_fast')
+                $('#tabs ul.mode-connected').hide()
+                $('#tabs ul.mode-disconnected').show()
+                $('#tabs ul.mode-disconnected li a:first').click()
                 $('div#connectbutton a.connect').removeClass('active')
-                const options = {
-                  type      : 'warning',
-                  buttons   : [i18n.getMessage('Confirm')],
-                  defaultId : 0,
-                  title     : i18n.getMessage('warningTitle'),
-                  message   : i18n.getMessage('NoConfigurationReceived'),
-                  detail    : i18n.getMessage('NoValidPort'),
-                  noLink    : true,
-                }
-                let WIN = getCurrentWindow()
-                dialog.showMessageBoxSync(WIN, options)
+                $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
+              } else {
+                GUI.connect_lock = false
+                $('div#connectbutton a.connect').removeClass('active')
+                $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
               }
-            }, 1000)
-            GUI.interval_add('mavlink_heartbeat', mavlink_msg_heartbeat, 1000, true)
-          } else {
-            $('div#connectbutton div.connect_state').text(i18n.getMessage('flashTab')).addClass('active')
-          }
-        })
+              GUI.connect_lock = true
+              GUI.interval_remove('mavlink_heartbeat')
+              $('div#connectbutton a.connect').removeClass('active')
+              const options = {
+                type      : 'warning',
+                buttons   : [i18n.getMessage('Confirm')],
+                defaultId : 0,
+                title     : i18n.getMessage('warningTitle'),
+                message   : i18n.getMessage('NoConfigurationReceived'),
+                detail    : i18n.getMessage('NoValidPort'),
+                noLink    : true,
+              }
+              let WIN = getCurrentWindow()
+              dialog.showMessageBoxSync(WIN, options)
+            }
+          }, 1000)
+          GUI.interval_add('mavlink_heartbeat', mavlink_msg_heartbeat, 1000, true)
+        } else {
+          $('div#connectbutton div.connect_state').text(i18n.getMessage('flashTab')).addClass('active')
+        }
+        // })
 
         //close事件监听
-        port.on('close', () => {
-          if (isFlasherTab == 0) {
-            console.log('close')
-            GUI.connect_lock = false
-            GUI.interval_remove('mavlink_heartbeat')
-            GUI.interval_remove('display_Info')
-            GUI.interval_remove('setup_data_pull_fast')
-            $('#tabs ul.mode-connected').hide()
-            $('#tabs ul.mode-disconnected').show()
-            $('#tabs ul.mode-disconnected li a:first').click()
-            $('div#connectbutton a.connect').removeClass('active')
-            $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
-          } else {
-            GUI.connect_lock = false
-            $('div#connectbutton a.connect').removeClass('active')
-            $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
-          }
-        })
+        // port.on('close', () => {
+        //   if (isFlasherTab == 0) {
+        //     console.log('close')
+        //     GUI.connect_lock = false
+        //     GUI.interval_remove('mavlink_heartbeat')
+        //     GUI.interval_remove('display_Info')
+        //     GUI.interval_remove('setup_data_pull_fast')
+        //     $('#tabs ul.mode-connected').hide()
+        //     $('#tabs ul.mode-disconnected').show()
+        //     $('#tabs ul.mode-disconnected li a:first').click()
+        //     $('div#connectbutton a.connect').removeClass('active')
+        //     $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
+        //   } else {
+        //     GUI.connect_lock = false
+        //     $('div#connectbutton a.connect').removeClass('active')
+        //     $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
+        //   }
+        // })
 
         //data事件监听
         port.on('data', (data) => {
@@ -182,6 +165,22 @@ window.onload = function () {
         })
       } else {
         port.close()
+        if (isFlasherTab == 0) {
+          console.log('close')
+          GUI.connect_lock = false
+          GUI.interval_remove('mavlink_heartbeat')
+          GUI.interval_remove('display_Info')
+          GUI.interval_remove('setup_data_pull_fast')
+          $('#tabs ul.mode-connected').hide()
+          $('#tabs ul.mode-disconnected').show()
+          $('#tabs ul.mode-disconnected li a:first').click()
+          $('div#connectbutton a.connect').removeClass('active')
+          $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
+        } else {
+          GUI.connect_lock = false
+          $('div#connectbutton a.connect').removeClass('active')
+          $('div#connectbutton div.connect_state').text(i18n.getMessage('connect'))
+        }
       }
     })
 
@@ -192,7 +191,7 @@ window.onload = function () {
     }
 
     const ui_tabs = $('#tabs > ul')
-    $('a', ui_tabs).click(function () {
+    $('a', ui_tabs).on('click', function () {
       if ($(this).parent().hasClass('active') === false && !GUI.tab_switch_in_progress) {
         const self = this
         const tabClass = $(self).parent().prop('class')

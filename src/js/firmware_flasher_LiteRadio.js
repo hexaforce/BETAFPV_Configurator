@@ -1,8 +1,10 @@
 const os = require('os')
 const path = require('path')
-
 var jsonFile = require('jsonfile')
 var jsonfileName = 'LiteRadio.json'
+var { loadRemoteJsonFile, loadRemoteFirmwareFile } = require('./src/js/firmware_flasher_LiteRadioDownloder.js')
+var { CRC16_Check, CRC16_Name } = require('./src/js/firmware_utils.js')
+var { addBoarOption } = require('./src/js/utils.js')
 
 const firmware_flasher_LiteRadio = {
   localFirmwareLoaded       : false,
@@ -81,170 +83,8 @@ firmware_flasher_LiteRadio.flashProgress = function (value) {
   return this
 }
 
-function isExistOption2(id, value) {
-  var isExist = false
-  var count = $('#' + id).find('option').length
-
-  for (var i = 0; i < count; i++) {
-    if ($('#' + id).get(0).options[i].value == value) {
-      isExist = true
-      break
-    }
-  }
-  return isExist
-}
-
-function addOptionValue2(id, value, text) {
-  if (!isExistOption2(id, value)) {
-    $('#' + id).append('<option value=' + value + '>' + text + '</option>')
-  }
-}
-
-function readJsonFile(fileName) {
-  jsonFile.readFile(fileName, function (err, jsonData) {
-    if (err) throw err
-    if (jsonData.status !== 404) {
-      $('#boardTarget').empty()
-      addOptionValue2('boardTarget', 1, 'LiteRadio_2_SE')
-      addOptionValue2('boardTarget', 2, 'LiteRadio_2_SE_V2_SX1280')
-      addOptionValue2('boardTarget', 3, 'LiteRadio_2_SE_V2_CC2500')
-      addOptionValue2('boardTarget', 4, 'LiteRadio_3_SX1280')
-      addOptionValue2('boardTarget', 5, 'LiteRadio_3_CC2500')
-      $('#boardVersion').empty()
-      for (let i = 0; i < jsonData.LiteRadio_2_SE.length; i++) {
-        addOptionValue2('boardVersion', i, jsonData.LiteRadio_2_SE[0].version)
-      }
-      firmware_flasher_LiteRadio.firmware_version = jsonData
-
-      console.log('----------------------------------')
-    } else {
-    }
-
-    // }
-  })
-}
-
-function loadRemoteJsonFile() {
-  //     var xhr = new XMLHttpRequest();
-  //     xhr.responseType = 'arraybuffer';
-  //     xhr.onload = function(e) {
-  //         var array = new Uint8Array(xhr.response);
-  //         var file_path = path.join(__dirname, "./LiteRadio.json");
-  //         fs.writeFile(file_path, array, "utf8",(err)=>{
-  //             if(err){
-  //                 alert(i18n.getMessage("write_file_failed"));
-  //             }else {
-  //                 readJsonFile(file_path);
-  //             }
-  //         })
-  //     };
-  //     //1.优先访问github上的固件
-  //     setTimeout(() => {
-  //         xhr.open('GET', "https://github.com/BETAFPV/BETAFPV.github.io/releases/download/v2.0.0/LiteRadio.json", true);
-  //         xhr.send(null);
-  //         console.log("get literadio.json from github");
-  //     }, 1000);
-  //    xhr.onreadystatechange = function(){
-  //        if(xhr.readyState==2){
-  //        }else if(xhr.readyState==3){
-  //        }
-  //         if (xhr.readyState == 4){
-  //             if(xhr.status == 200){//ok
-  //                 //从github上加载固件成功
-  //                 // alert("Request firmware successful: "+xhr.status);
-  //                 console.log("get json file successful");
-  //                 loadJsonFileFromGithubSuccessful = true;
-  //             }
-  //             // else if(xhr.status == 400){
-  //             //     alert("Bad Request : "+xhr.status);
-  //             // }else if(xhr.status == 401){
-  //             //     alert("Request was Unauthonzed: "+xhr.status);
-  //             // }else if(xhr.status == 403){
-  //             //     alert("Request was Forbidden: "+xhr.status);
-  //             // }else if(xhr.status == 404){
-  //             //     alert("Request was Not Found: "+xhr.status);
-  //             // }else if(xhr.status == 500){
-  //             //     alert(" Internal Server Error: "+xhr.status);
-  //             // }else if(xhr.status == 503){
-  //             //     alert("Service Unavailable : "+xhr.status);
-  //             // }
-  //             else{
-  //                 //2.github无法访问切换到gittee上访问
-  //                 if(loadJsonFileFromGithubSuccessful == true){
-  //                     loadJsonFileFromGithubSuccessful = false;
-  //                     console.log("can't load json file from github");
-  //                 }else{
-  //                     console.log("can't load json file from gitee");
-  //                 }
-  //             }
-  //         }
-  //     };
-  //     //3.超时无法连接github则从gitee上加载
-  //     setTimeout(() => {
-  //         if(loadJsonFileFromGithubSuccessful == false){
-  //             xhr.open('GET', "https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/955204/download/LiteRadio.json", true);
-  //             xhr.send(null);
-  //             console.log("get json file from gitee");
-  //         }
-  //     }, 5000);
-  //     xhr.timeout = 3000;
-  //     xhr.ontimeout = function(){
-  //         loadJsonFileFromGithubSuccessful = false;
-  //         console.log("get json file time out");
-  //     }
-}
-
-function CRC16_Check(puData) {
-  var len = puData.length
-
-  if (len > 0) {
-    var crc = 0x0000
-
-    for (var i = 0; i < 1024; i++) {
-      crc = crc ^ ((puData[3 + i] << 8) & 0xff00)
-
-      for (var j = 0; j < 8; j++) {
-        if (crc & 0x8000) crc = (crc << 1) ^ 0x1021
-        //CRC-ITU
-        else crc = crc << 1
-      }
-      crc &= 0xffff
-    }
-
-    var hi = (crc >> 8) & 0xff //高位置
-    var lo = crc & 0xff //低位置
-
-    puData[1027] = hi
-    puData[1028] = lo
-  }
-}
-
-function CRC16_Name(puData) {
-  var len = puData.length
-
-  if (len > 0) {
-    var crc = 0x0000
-
-    for (var i = 0; i < 128; i++) {
-      crc = crc ^ ((puData[3 + i] << 8) & 0xff00)
-
-      for (var j = 0; j < 8; j++) {
-        if (crc & 0x8000) crc = (crc << 1) ^ 0x1021
-        //CRC-ITU
-        else crc = crc << 1
-      }
-      crc &= 0xffff
-    }
-
-    var hi = (crc >> 8) & 0xff //高位置
-    var lo = crc & 0xff //低位置
-
-    puData[131] = hi
-    puData[132] = lo
-  }
-}
 firmware_flasher_LiteRadio.connect_init = function () {
-  $('div.connect_controls a.connect').click(function () {
+  $('div.connect_controls a.connect').on('click', function () {
     if (GUI.connect_lock != true) {
       const thisElement = $(this)
       const clicks = thisElement.data('clicks')
@@ -287,7 +127,7 @@ firmware_flasher_LiteRadio.connect_init = function () {
       port.on('data', (data) => {
         if (starting == 1) {
           if (data[0] == 67) {
-            var bufName = new Buffer(133)
+            var bufName = Buffer.alloc(133)
 
             bufName[0] = 0x01
             bufName[1] = 0x00
@@ -333,7 +173,7 @@ firmware_flasher_LiteRadio.connect_init = function () {
         } else {
           if (starting == 2) {
             if (data[0] == 6) {
-              var bufData = new Buffer(1029)
+              var bufData = Buffer.alloc(1029)
 
               fs.open(binFilePath, 'r', function (err, fd) {
                 if (err) {
@@ -380,7 +220,7 @@ firmware_flasher_LiteRadio.connect_init = function () {
           } else if (starting == 4) {
             console.log(data)
             if (data[0] == 21) {
-              var buf = new Buffer(133)
+              var buf = Buffer.alloc(133)
 
               buf[0] = 0x01
               buf[1] = 0x00
@@ -404,7 +244,7 @@ firmware_flasher_LiteRadio.connect_init = function () {
             }
           } else if (starting == 3) {
             if (data[0] == 6) {
-              var buf = new Buffer(1)
+              var buf = Buffer.alloc(1)
               buf[0] = 0x04
 
               port.write(buf, (err) => {
@@ -438,7 +278,7 @@ firmware_flasher_LiteRadio.initialize = function (callback) {
 
   $('#content').load('./src/html/firmware_flasher_LiteRadio.html', function () {
     i18n.localizePage()
-    $('a.load_file').click(function () {
+    $('a.load_file').on('click', function () {
       const { dialog } = require('@electron/remote')
       dialog
         .showOpenDialog({
@@ -473,49 +313,34 @@ firmware_flasher_LiteRadio.initialize = function (callback) {
         })
     })
 
-    $('select[id="boardTarget"]').change(function () {
+    $('select[id="boardTarget"]').on('change', function () {
       firmware_flasher_LiteRadio.target_board = parseInt($(this).val(), 10)
       switch (firmware_flasher_LiteRadio.target_board) {
         case 0:
           break
         case 1:
-          $('#boardVersion').empty()
-          for (let i = 0; i < firmware_flasher_LiteRadio.firmware_version.LiteRadio_2_SE.length; i++) {
-            addOptionValue2('boardVersion', i, firmware_flasher_LiteRadio.firmware_version.LiteRadio_2_SE[i].version)
-          }
+          addBoarOption(firmware_flasher_LiteRadio.firmware_version.LiteRadio_2_SE)
           break
         case 2:
-          $('#boardVersion').empty()
-          for (let i = 0; i < firmware_flasher_LiteRadio.firmware_version.LiteRadio_2_SE_V2_SX1280.length; i++) {
-            addOptionValue2('boardVersion', i, firmware_flasher_LiteRadio.firmware_version.LiteRadio_2_SE_V2_SX1280[i].version)
-          }
+          addBoarOption(firmware_flasher_LiteRadio.firmware_version.LiteRadio_2_SE_V2_SX1280)
           break
         case 3:
-          $('#boardVersion').empty()
-          for (let i = 0; i < firmware_flasher_LiteRadio.firmware_version.LiteRadio_2_SE_V2_CC2500.length; i++) {
-            addOptionValue2('boardVersion', i, firmware_flasher_LiteRadio.firmware_version.LiteRadio_2_SE_V2_CC2500[i].version)
-          }
+          addBoarOption(firmware_flasher_LiteRadio.firmware_version.LiteRadio_2_SE_V2_CC2500)
           break
         case 4:
-          $('#boardVersion').empty()
-          for (let i = 0; i < firmware_flasher_LiteRadio.firmware_version.LiteRadio_3_SX1280.length; i++) {
-            addOptionValue2('boardVersion', i, firmware_flasher_LiteRadio.firmware_version.LiteRadio_3_SX1280[i].version)
-          }
+          addBoarOption(firmware_flasher_LiteRadio.firmware_version.LiteRadio_3_SX1280)
           break
         case 5:
-          $('#boardVersion').empty()
-          for (let i = 0; i < firmware_flasher_LiteRadio.firmware_version.LiteRadio_3_CC2500.length; i++) {
-            addOptionValue2('boardVersion', i, firmware_flasher_LiteRadio.firmware_version.LiteRadio_3_CC2500[i].version)
-          }
+          addBoarOption(firmware_flasher_LiteRadio.firmware_version.LiteRadio_3_CC2500)
           break
         default:
           $('#boardVersion').empty()
           break
       }
     })
-    $('a.flash_firmware').click(function () {
+    $('a.flash_firmware').on('click', function () {
       if (!$(this).hasClass('disabled')) {
-        var buf = Buffer(8)
+        var buf = Buffer.alloc(8)
         buf[0] = 0x75
         buf[1] = 0x70
         buf[2] = 0x64
@@ -537,170 +362,11 @@ firmware_flasher_LiteRadio.initialize = function (callback) {
       }
     })
 
-    $('a.load_remote_file').click(function () {
-      if (!$(this).hasClass('disabled')) {
-        let targetBoardSelected = $('#boardTarget option:selected').text()
-        let targetVersionSelected = $('#boardVersion option:selected').text()
-
-        var str = targetBoardSelected + '_' + targetVersionSelected + '.bin'
-
-        // var urlValue = "https://github.com/BETAFPV/BETAFPV.github.io/releases/download/v1/" + str;
-        var urlValue = 'https://github.com/BETAFPV/BETAFPV.github.io/releases/download/v2.0.0/' + str
-
-        var xhr = new XMLHttpRequest()
-        xhr.open('GET', urlValue, true)
-        xhr.responseType = 'arraybuffer'
-        xhr.onload = function (e) {
-          var array = new Uint8Array(xhr.response)
-
-          fs.writeFile(path.join(__dirname, str), array, 'utf8', (err) => {
-            if (err) {
-              alert(i18n.getMessage('write_file_failed'))
-            } else {
-              binFilePath = path.join(__dirname, str)
-              fs.readFile(binFilePath, (err, binFile) => {
-                if (err) {
-                } else {
-                  binSize = binFile.length
-                  packLen = Math.round(binSize / 1024)
-                  if (packLen > 10) {
-                    self.enableFlashing(true)
-                    firmware_flasher_LiteRadio.flashingMessage('Load Firmware Sucessfuly! Firmware Size: ( ' + binFile.length + 'bytes )', self.FLASH_MESSAGE_TYPES.NEUTRAL)
-                  } else {
-                    self.enableFlashing(false)
-                    firmware_flasher_LiteRadio.flashingMessage('Load Firmware Failure!')
-                  }
-                }
-              })
-            }
-          })
-        }
-        xhr.onreadystatechange = function () {
-          if (xhr.readyState == 2) {
-          } else if (xhr.readyState == 3) {
-          }
-
-          if (xhr.readyState == 4) {
-            if (xhr.status == 200) {
-              //ok
-              loadFirmwareFromGithubSuccessful = true
-            } else {
-              if (loadFirmwareFromGithubSuccessful == true) {
-                loadFirmwareFromGithubSuccessful = false
-                console.log("can't load firmware from github")
-              } else {
-                console.log("can't load firmware from gitee")
-              }
-            }
-          }
-        }
-        xhr.send()
-        setTimeout(() => {
-          if (loadFirmwareFromGithubSuccessful == false) {
-            let firmware_name = targetBoardSelected + '_' + targetVersionSelected + '.bin'
-            switch (firmware_name) {
-              case 'LiteRadio_2_SE_1.0.0.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/881713/download/LiteRadio_2_SE_1.0.0.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_2_SE_V2_SX1280_1.0.0.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/881708/download/LiteRadio_2_SE_V2_SX1280_1.0.0.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_2_SE_V2_SX1280_1.0.1.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/882149/download/LiteRadio_2_SE_V2_SX1280_1.0.1.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_2_SE_V2_SX1280_1.0.2.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/933691/download/LiteRadio_2_SE_V2_SX1280_1.0.2.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_2_SE_V2_SX1280_2.0.0.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/955209/download/LiteRadio_2_SE_V2_SX1280_2.0.0.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_2_SE_V2_SX1280_2.0.1.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/955205/download/LiteRadio_2_SE_V2_SX1280_2.0.1.bin', true)
-                xhr.send(null)
-                break
-
-              case 'LiteRadio_3_SX1280_1.0.0.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/881711/download/LiteRadio_3_SX1280_1.0.0.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_3_SX1280_1.0.1.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/882150/download/LiteRadio_3_SX1280_1.0.1.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_3_SX1280_1.0.2.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/933685/download/LiteRadio_3_SX1280_1.0.2.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_3_SX1280_2.0.0.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/955211/download/LiteRadio_3_SX1280_2.0.0.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_3_SX1280_2.0.1.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/955206/download/LiteRadio_3_SX1280_2.0.1.bin', true)
-                xhr.send(null)
-                break
-
-              case 'LiteRadio_2_SE_V2_CC2500_1.0.0.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/881707/download/LiteRadio_2_SE_V2_CC2500_1.0.0.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_2_SE_V2_CC2500_1.0.1.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/933688/download/LiteRadio_2_SE_V2_CC2500_1.0.1.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_2_SE_V2_CC2500_1.0.2.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/933689/download/LiteRadio_2_SE_V2_CC2500_1.0.2.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_2_SE_V2_CC2500_2.0.0.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/955210/download/LiteRadio_2_SE_V2_CC2500_2.0.0.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_2_SE_V2_CC2500_2.0.1.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/955208/download/LiteRadio_2_SE_V2_CC2500_2.0.1.bin', true)
-                xhr.send(null)
-                break
-
-              case 'LiteRadio_3_CC2500_1.0.0.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/881712/download/LiteRadio_3_CC2500_1.0.0.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_3_CC2500_1.0.1.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/933682/download/LiteRadio_3_CC2500_1.0.1.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_3_CC2500_1.0.2.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/933681/download/LiteRadio_3_CC2500_1.0.2.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_3_CC2500_2.0.0.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/955212/download/LiteRadio_3_CC2500_2.0.0.bin', true)
-                xhr.send(null)
-                break
-              case 'LiteRadio_3_CC2500_2.0.1.bin':
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/955207/download/LiteRadio_3_CC2500_2.0.1.bin', true)
-                xhr.send(null)
-                break
-
-              default:
-                xhr.open('GET', 'https://gitee.com/huang_wen_tao123/lite-radio_-elrs_-release/attach_files/856701/download/null.bin', true)
-                xhr.send(null)
-                break
-            }
-          }
-        }, 2000)
-
-        xhr.timeout = 1800
-        xhr.ontimeout = function () {
-          console.log('get firmware time out')
-          loadFirmwareFromGithubSuccessful = false
-        }
+    $('a.load_remote_file').on('click', function () {
+      if ($(this).hasClass('disabled')) {
+        return
       }
+      loadRemoteFirmwareFile(self)
     })
 
     loadRemoteJsonFile()
